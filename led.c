@@ -24,6 +24,7 @@
 
 #ifdef ATMEGA328
 
+#define LED_1_PORT PORTD
 #define LED_1_DDR DDRD
 #define LED_1_PIN PIND
 #define LED_1 6
@@ -150,5 +151,7 @@ void led_sio_other(uint8_t on) {
 }
 
 void led_off(void) {
-	LED_PORT |= LED_MASK;
+	LED_1_PORT |= (1<<LED_1); // send HIGH to turn OFF
+	LED_2_PORT |= (1<<LED_2); // send HIGH to turn OFF
+	LED_3_PORT |= (1<<LED_3); // send HIGH to turn OFF
 }
