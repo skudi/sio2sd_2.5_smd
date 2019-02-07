@@ -49,7 +49,11 @@ int8_t fat_sio_getnextentry(uint8_t *fbuff,uint8_t firstflag);
 int8_t fat_sio_enterdir(uint8_t *fbuff);
 int8_t fat_sio_dirup(void);
 
+#ifdef NOLCD
 void fat_refresh(void);
+#else
+inline void fat_refresh(void) {};
+#endif
 
 void fat_firmware_update(void);
 

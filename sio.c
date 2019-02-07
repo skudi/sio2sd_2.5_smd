@@ -31,7 +31,12 @@
 #include "led.h"
 #include "cbisbi.h"
 
+#ifdef ATMEGA328
+#define NORMAL_SPEED_DIVISOR 51
+#else
 #define NORMAL_SPEED_DIVISOR 46
+#endif
+
 #define HIGH_SPEED_DIVISOR (hsindex+6)
 
 #define SIO_DDR DDRD
@@ -334,6 +339,19 @@ void sio_get_file_name(uint8_t *fname,uint8_t mleng,uint16_t fno) {
 }
 */
 
+#ifdef ATMEGA328
+#define UCSRA UCSR0A
+#define UCSRB UCSR0B
+#define UCSRC UCSR0C
+#define UDR UDR0
+#define UDRE UDRE0
+#define RXC RXC0
+#define FE FE0
+#define DOR DOR0
+#define UBRRL UBRR0L
+#define UBRRH UBRR0H
+//#define  0
+#endif
 
 void sio_putc(uint8_t c) {
 	while (bit_is_clear(UCSRA,UDRE)) {}
@@ -1075,7 +1093,11 @@ void sio_change_speed(void) {
 void sio_init(uint8_t shift) {
 	UCSRA = 0x00;	// UX2 (double speed (/8) on = 0x02 ; normal (/16)) 
 	UCSRB = 0x18;	//TXE + RXE
+#ifdef ATMEGA328
+	UCSR0C = 0x06;	// USBS =0(0x08) + (UCSZ1+UCSZ0) (0x06 = 8bit)
+#else
 	UCSRC = 0x86;	//UCSRCSEL (0x80) + USBS (0x08) + (UCSZ1+UCSZ0) (0x06 = 8bit)
+#endif
 	sbi(SIO_PORT,SIO_CMD); // pullup
 	cbi(SIO_DDR,SIO_CMD);
 	sio_normal_speed();
@@ -1138,9 +1160,11 @@ void sio_process_command(void) {
 	if (sio_next_command(data_buff)>=0) {
 		DELAY_START(US_TO_TICKS(SIO_COMMAND_TO_ACK_DELAY))
 		aux = *((uint16_t*)(data_buff+2));
+#ifndef NOLCD
 		if (data_buff[0]<0x72 || data_buff[0]>0x75 || data_buff[1]) {	// hide check command
 			interface_sio_command(data_buff[0],data_buff[1],aux);
 		}
+#endif
 		DELAY_END
 		if (data_buff[0]==0x72+deviceid) {
 			if (cfgtoolover==1 || cfgtoolover==4) {
@@ -1168,9 +1192,11 @@ void sio_process_command(void) {
 				case 0x06:
 					sio_conf_dir_up();
 					break;
+#ifndef NOLCD
 				case 0x10:
 					sio_lcd_msg(data_buff[2]&1);
 					break;
+#endif
 				default:
 					sio_putc(SIO_NAK);
 			}

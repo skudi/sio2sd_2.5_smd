@@ -23,9 +23,29 @@
 #include <inttypes.h>
 #include "mmc.h"
 #include "delay.h"
-#include "cbisbi.h"
+#include <util/delay.h>
 
 #define nop()  __asm__ __volatile__ ("nop" ::)
+
+#ifdef ATMEGA328
+
+#define MMC_PORT PORTC
+#define MMC_DDR DDRC
+#define MMC_PIN PINC
+
+#define MMC_CS 0
+#define MMC_MOSI 1
+#define MMC_SCK 2
+#define MMC_MISO 3
+#define MMC_DETECT 4
+#define MMC_MASK 0x1F
+
+#define MMCDETECT_PORT PORTC
+#define MMCDETECT_DDR DDRC
+#define MMCDETECT_PIN PINC
+#define MMCDETECT_MASK (1<<MMC_DETECT)
+
+#else
 
 #define MMC_PORT PORTB
 #define MMC_DDR DDRB
@@ -42,9 +62,8 @@
 #define MMCDETECT_PIN PINC
 #define MMC_DETECT 0
 #define MMCDETECT_MASK (1<<MMC_DETECT)
-// #define LED_1 5
-// #define LED_2 6
-// #define LED_3 7
+
+#endif
 
 #ifndef FIRMWARE
 static uint8_t cardinslot;
@@ -67,39 +86,12 @@ static void mmc_spi_flush(void);
 void mmc_init(void) {
 	MMC_PORT = (MMC_PORT & (~MMC_MASK)) | (1<<MMC_CS)|(1<<MMC_MOSI)|(1<<MMC_MISO);
 	MMCDETECT_PORT = (MMCDETECT_PORT & (~MMCDETECT_MASK)) | (1<<MMC_DETECT);
-//	MMC_PORT = (1<<MMC_CS)|(1<<MMC_MOSI)|(1<<MMC_MISO)|(1<<MMC_DETECT)|(1<<LED_1)|(1<<LED_2)|(1<<LED_3);
-
-//	sbi(MMC_PORT,MMC_CS);
-//	sbi(MMC_PORT,MMC_MOSI);
-//	sbi(MMC_PORT,MMC_MISO);
-//	sbi(MMC_PORT,MMC_DETECT);
-//	cbi(MMC_PORT,MMC_SCK);
 
 	MMC_DDR = (MMC_DDR & (~MMC_MASK)) | (1<<MMC_MOSI)|(1<<MMC_SCK)|(1<<MMC_CS);
 	MMCDETECT_DDR = (MMCDETECT_DDR & (~MMCDETECT_MASK));
-//	MMC_DDR = (1<<MMC_MOSI)|(1<<MMC_SCK)|(1<<MMC_CS)|(1<<LED_1)|(1<<LED_2)|(1<<LED_3);
-//	cbi(MMC_DDR,MMC_MISO);
-//	cbi(MMC_DDR,MMC_DETECT);
-//	sbi(MMC_DDR,MMC_MOSI);
-//	sbi(MMC_DDR,MMC_SCK);
-//	sbi(MMC_DDR,MMC_CS);
 
 	cardinslot = 2;
 }
-
-/*
-void led_set(uint8_t no,uint8_t on) {
-	if (no<1 || no>3) {
-		return;
-	}
-	no = 1<<(3-no+LED_1);
-	if (on) {
-		MMC_PORT &= ~no;
-	} else {
-		MMC_PORT |= no;
-	}
-}
-*/
 
 uint8_t mmc_card_removed(void) {
 	if (cardinslot!=0 && bit_is_set(MMCDETECT_PIN,MMC_DETECT)) {
@@ -224,7 +216,7 @@ void mmc_spi_send(uint8_t b) {
 */
 
 void mmc_spi_flush(void) {
-	uint8_t i=8;
+	uint8_t i=80;
 	sbi(MMC_PORT,MMC_MOSI);
 	nop();
 	nop();
@@ -287,9 +279,12 @@ uint8_t mmc_read_response(void) {
 }
 
 #ifndef FIRMWARE
+#define NEWERCARDINIT
+#ifdef NEWERCARDINIT
 uint8_t mmc_card_init(void) {
 	uint8_t r; //,b;
 	uint16_t i;
+	uint16_t j;
 	sbi(MMC_PORT,MMC_CS);
 	DELAY(US_TO_TICKS(20000))
 //	delay_ms(10);
@@ -298,26 +293,221 @@ uint8_t mmc_card_init(void) {
 		mmc_spi_flush();
 		i--;
 	} while (i!=0);
+
 	mmc_send_command(0,0x95);	// send CMD0
-	r = mmc_read_response();
-	if (r!=1) {
-		return 0;
-	}
+
 	i=1000;
 	do {
-		mmc_send_command(1,0xff);
-		r = mmc_read_response();
-		if (r==0) {
-			return 1;	// ok
+		mmc_spi_send(0xff);
+		r = mmc_spi_receive();
+		if (r!=0xff) {
+			break;
 		}
-		if (r==1) {
-			DELAY(US_TO_TICKS(500))
-//			delay_ms(1);
+		i--;
+		if (i==0) {
+        		sbi(MMC_PORT,MMC_CS);
+			return 0;
 		}
+	} while (i!=0);
+
+        sbi(MMC_PORT,MMC_CS);
+	mmc_spi_flush();
+        cbi(MMC_PORT,MMC_CS);
+
+	r = mmc_spi_receive();
+  	mmc_spi_send(0x48); // CMD8
+	mmc_spi_send(0);
+  	mmc_spi_send(0);
+  	mmc_spi_send(1);
+ 	mmc_spi_send(0xaa);
+	mmc_spi_send(0x87);
+	r = mmc_read_response(); // this will wait
+	r = mmc_spi_receive(); // 4 bytes more
+	r = mmc_spi_receive();
+	r = mmc_spi_receive();
+	r = mmc_spi_receive();
+        sbi(MMC_PORT,MMC_CS);
+	mmc_spi_flush();
+
+	i=1000;
+	do {
+                cbi(MMC_PORT,MMC_CS);
+                r = mmc_spi_receive();
+                mmc_spi_send(0x77); // CMD55
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0xff);
+		r = mmc_read_response(); // this will wait
+		if (r != 0x01) {
+			sbi(MMC_PORT,MMC_CS);
+			if (i > 0) {
+				continue;
+			}
+#ifdef EXTRAMESSAGES
+			lcd_put_line(1,cmd55badstr);
+			_delay_ms(3000);
+#endif
+			return 0;
+		}
+                r = mmc_spi_receive();
+                r = mmc_spi_receive();
+                sbi(MMC_PORT,MMC_CS);
+                mmc_spi_flush();
+
+                cbi(MMC_PORT,MMC_CS);
+                mmc_spi_send(0x69); // ACMD41
+                mmc_spi_send(0x40); // HCS = 1
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0xff);
+
+		j=150;
+		do {
+			r = mmc_spi_receive();
+
+			if (r==0x00) {
+                                sbi(MMC_PORT,MMC_CS);
+                                mmc_spi_flush();
+                                cbi(MMC_PORT,MMC_CS);
+                                r = mmc_spi_receive();
+                                mmc_spi_send(0x50); //CMD16
+                                mmc_spi_send(0);
+                                mmc_spi_send(0);
+                                mmc_spi_send(2);
+                                mmc_spi_send(0);
+                                mmc_spi_send(0xff);
+                                r = mmc_read_response();
+				if (r != 0x00) {
+					sbi(MMC_PORT,MMC_CS);
+#ifdef EXTRAMESSAGES
+					lcd_put_line(1,cmd16badstr);
+					_delay_ms(3000);
+#endif
+					return 0;
+				}
+
+                                r = mmc_spi_receive();
+                                sbi(MMC_PORT,MMC_CS);
+                                return 1;       // ok
+
+			}
+			if (r==1) {
+				DELAY(US_TO_TICKS(500))
+			}
+			j--;
+		} while (j!=0);
+		sbi(MMC_PORT,MMC_CS);
+
 		i--;
 	} while (i!=0);
 	return 0;
 }
+#else
+uint8_t mmc_card_init(void) {
+	uint8_t r; //,b;
+	uint16_t i;
+	uint16_t j;
+	sbi(MMC_PORT,MMC_CS);
+	DELAY(US_TO_TICKS(20000))
+//	delay_ms(10);
+	i = 1000;
+	do {
+		mmc_spi_flush();
+		i--;
+	} while (i!=0);
+
+	mmc_send_command(0,0x95);	// send CMD0
+
+	i=1000;
+	do {
+		mmc_spi_send(0xff);
+		r = mmc_spi_receive();
+		if (r!=0xff) {
+			break;
+		}
+		i--;
+		if (i==0) {
+        		sbi(MMC_PORT,MMC_CS);
+			return 0;
+		}
+	} while (i!=0);
+
+        sbi(MMC_PORT,MMC_CS);
+	mmc_spi_receive();
+        cbi(MMC_PORT,MMC_CS);
+
+	r = mmc_spi_receive();
+  	mmc_spi_send(0x48); // CMD8
+	mmc_spi_send(0);
+  	mmc_spi_send(0);
+  	mmc_spi_send(1);
+ 	mmc_spi_send(0xaa);
+	mmc_spi_send(0x87);
+	r = mmc_spi_receive();
+	r = mmc_spi_receive();
+        sbi(MMC_PORT,MMC_CS);
+	r = mmc_spi_receive();
+
+	i=1000;
+	do {
+                cbi(MMC_PORT,MMC_CS);
+                r = mmc_spi_receive();
+                mmc_spi_send(0x77); // CMD55
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0xff);
+                r = mmc_spi_receive();
+                r = mmc_spi_receive();
+                sbi(MMC_PORT,MMC_CS);
+                r = mmc_spi_receive();
+
+                cbi(MMC_PORT,MMC_CS);
+                mmc_spi_send(0x69); // ACMD41
+                mmc_spi_send(0x40); // HCS = 1
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0);
+                mmc_spi_send(0xff);
+
+		j=150;
+		do {
+			r = mmc_spi_receive();
+
+			if (r==0x00) {
+                                sbi(MMC_PORT,MMC_CS);
+                                r = mmc_spi_receive();
+                                r = mmc_spi_receive();
+                                cbi(MMC_PORT,MMC_CS);
+                                r = mmc_spi_receive();
+                                mmc_spi_send(0x50); //CMD16
+                                mmc_spi_send(0);
+                                mmc_spi_send(0);
+                                mmc_spi_send(2);
+                                mmc_spi_send(0);
+                                mmc_spi_send(0xff);
+                                r = mmc_spi_receive();
+                                r = mmc_spi_receive();
+                                sbi(MMC_PORT,MMC_CS);
+                                return 1;       // ok
+
+			}
+			if (r==1) {
+				DELAY(US_TO_TICKS(500))
+			}
+			j--;
+		} while (j!=0);
+		sbi(MMC_PORT,MMC_CS);
+
+		i--;
+	} while (i!=0);
+	return 0;
+}
+#endif
 
 uint16_t mmc_get_status(void) {
 	uint8_t i;
@@ -375,12 +565,27 @@ uint8_t mmc_get_csd(uint8_t *buff) {
 uint8_t mmc_read_sector(uint32_t snum,uint8_t *buff) {
 	uint16_t i;
 	tc sec;
-	sec.l = snum<<1;
-	mmc_send_command_params(17,sec.c[2],sec.c[1],sec.c[0],0);
-	if (mmc_read_response()!=0) {
+	//sec.l = snum<<1;
+	sec.l = snum;
+	//mmc_send_command_params(17,sec.c[2],sec.c[1],sec.c[0],0);
+	// In HCS mode, you specify a 512 byte block address rather than a byte address
+	mmc_send_command_params(17,sec.c[3],sec.c[2],sec.c[1],sec.c[0]);
+	//retry a bit
+	for (i=10;i>0;i--) {
+		if (mmc_read_response()==0) {
+			break;
+		}
+	}
+	if (i==0) {
 		return 0;
 	}
-	if (mmc_read_response()!=0xFE) {
+	// retry a bit
+	for (i=10;i>0;i--) {
+		if (mmc_read_response()==0xfe) {
+			break;
+		}
+	}
+	if (i==0) {
 		return 0;
 	}
 	i=512;
@@ -398,13 +603,21 @@ uint8_t mmc_read_sector(uint32_t snum,uint8_t *buff) {
 uint8_t mmc_write_sector(uint32_t snum,uint8_t *buff) {
 	uint16_t i;
 	tc sec;
-	sec.l = snum<<1;
-	mmc_send_command_params(24,sec.c[2],sec.c[1],sec.c[0],0);
+//	sec.l = snum<<1;
+	sec.l = snum;
+//	mmc_send_command_params(24,sec.c[2],sec.c[1],sec.c[0],0);
+	mmc_send_command_params(24,sec.c[3],sec.c[2],sec.c[1],sec.c[0]);
 //	snum<<=1;
 //	mmc_send_command_params(24,(uint8_t)(snum>>16),(uint8_t)(snum>>8),(uint8_t)snum,0);
-	if (mmc_read_response()!=0) {
+	for (i=10;i>0;i--) {
+		if (mmc_read_response()==0) {
+			break;
+		}
+	}
+	if (i==0) {
 		return 0;
 	}
+	mmc_spi_send(0xFF); //dummy
 	mmc_spi_send(0xFE);
 	i=512;
 	do {
@@ -414,7 +627,8 @@ uint8_t mmc_write_sector(uint32_t snum,uint8_t *buff) {
 	} while (i!=0);
 	mmc_spi_flush();	// send 0xFF as CRC
 	mmc_spi_flush();	// send 0xFF as CRC
-	if ((mmc_read_response()&0x1f)!=0x05) {
+        // this line below generates a warning, but is OK
+	if (mmc_read_response()&0x1e !=4) {
 		return 0;
 	}
 	while (mmc_spi_receive()==0) ;	//wait for busy
@@ -424,8 +638,10 @@ uint8_t mmc_write_sector(uint32_t snum,uint8_t *buff) {
 uint8_t mmc_erase_sector(uint32_t snum) {
 	uint16_t i;
 	tc sec;
-	sec.l = snum<<1;
-	mmc_send_command_params(24,sec.c[2],sec.c[1],sec.c[0],0);
+//	sec.l = snum<<1;
+	sec.l = snum;
+//	mmc_send_command_params(24,sec.c[2],sec.c[1],sec.c[0],0);
+	mmc_send_command_params(24,sec.c[3],sec.c[2],sec.c[1],sec.c[0]);
 //	snum<<=1;
 //	mmc_send_command_params(24,(uint8_t)(snum>>16),(uint8_t)(snum>>8),(uint8_t)snum,0);
 	if (mmc_read_response()!=0) {

@@ -27,17 +27,31 @@
 
 #define nop()  __asm__ __volatile__ ("nop" ::)
 
-#define LCD_PORT PORTA
-#define LCD_PIN PINA
-#define LCD_DDR DDRA
+#ifdef ATMEGA328
 
-#define LCDDATA_PORT PORTB
-#define LCDDATA_PIN PINB
-#define LCDDATA_DDR DDRB
+#define LCD_CTRL_PORT PORTD
+#define LCD_CTRL_PIN PIND
+#define LCD_CTRL_DDR DDRD
 
-#define LCD_E 5
+#define LCD_RW 4
+#define LCD_RS 3
+
+#else
+
+#define LCD_CTRL_PORT PORTA
+#define LCD_CTRL_PIN PINA
+#define LCD_CTRL_DDR DDRA
+
 #define LCD_RW 6
 #define LCD_RS 7
+
+#endif
+
+#define LCD_DATA_PORT PORTB
+#define LCD_DATA_PIN PINB
+#define LCD_DATA_DDR DDRB
+
+#define LCD_E 5
 
 static uint8_t lcdon;
 
@@ -52,29 +66,29 @@ void lcd_delay_loop(uint8_t __count) {
 
 void lcd_write(uint8_t data,uint8_t reg) {
 	cli();
-	cbi(LCD_PORT,LCD_RW);
+	cbi(LCD_CTRL_PORT,LCD_RW);
 
 	if (reg) {
-		cbi(LCD_PORT,LCD_RS);
+		cbi(LCD_CTRL_PORT,LCD_RS);
 	} else {
-		sbi(LCD_PORT,LCD_RS);
+		sbi(LCD_CTRL_PORT,LCD_RS);
 	}
 
-	LCDDATA_DDR |= 0x0F;
+	LCD_DATA_DDR |= 0x0F; // MAke bits 0 to 3 OUTPUT
 
-	LCDDATA_PORT = (LCDDATA_PORT & 0xF0) | ((data>>4) & 0x0F);
-	sbi(LCD_PORT,LCD_E);
+	LCD_DATA_PORT = (LCD_DATA_PORT & 0xF0) | ((data>>4) & 0x0F);
+	sbi(LCD_CTRL_PORT,LCD_E);
 	lcd_delay_loop(3);
-	cbi(LCD_PORT,LCD_E);
+	cbi(LCD_CTRL_PORT,LCD_E);
 
 	if (reg<2) {
-		LCDDATA_PORT = (LCDDATA_PORT & 0xF0) | (data & 0x0F);
-		sbi(LCD_PORT,LCD_E);
+		LCD_DATA_PORT = (LCD_DATA_PORT & 0xF0) | (data & 0x0F);
+		sbi(LCD_CTRL_PORT,LCD_E);
 		lcd_delay_loop(3);
-		cbi(LCD_PORT,LCD_E);
+		cbi(LCD_CTRL_PORT,LCD_E);
 	}
 
-	LCDDATA_DDR &= 0xF0;
+	LCD_DATA_DDR &= 0xF0; // Make bits 0 to 3 INPUT
 
 	sei();
 }
@@ -82,25 +96,25 @@ void lcd_write(uint8_t data,uint8_t reg) {
 uint8_t lcd_read(uint8_t reg) {
 	uint8_t data;
 	cli();
-	sbi(LCD_PORT,LCD_RW);
+	sbi(LCD_CTRL_PORT,LCD_RW);
 
 	if (reg) {
-		cbi(LCD_PORT,LCD_RS);
+		cbi(LCD_CTRL_PORT,LCD_RS);
 	} else {
-		sbi(LCD_PORT,LCD_RS);
+		sbi(LCD_CTRL_PORT,LCD_RS);
 	}
 
-	LCDDATA_DDR &= 0xF0;
+	LCD_DATA_DDR &= 0xF0; // Make bits 0 to 3 INPUT
 
-	sbi(LCD_PORT,LCD_E);
+	sbi(LCD_CTRL_PORT,LCD_E);
 	lcd_delay_loop(3);
-	data = LCDDATA_PIN << 4;
-	cbi(LCD_PORT,LCD_E);
+	data = LCD_DATA_PIN << 4;  // Read high nibble
+	cbi(LCD_CTRL_PORT,LCD_E);
 	lcd_delay_loop(3);
-	sbi(LCD_PORT,LCD_E);
+	sbi(LCD_CTRL_PORT,LCD_E);
 	lcd_delay_loop(3);
-	data = data | (LCDDATA_PIN & 0x0F);
-	cbi(LCD_PORT,LCD_E);
+	data = data | (LCD_DATA_PIN & 0x0F); // Read low nibble
+	cbi(LCD_CTRL_PORT,LCD_E);
 
 	sei();
 	return data;
@@ -120,8 +134,8 @@ void lcd_waitbusy(void) {
 
 #ifndef FIRMWARE
 void lcd_init(void) {
-	LCD_DDR |= 0xE0;
-	cbi(LCD_PORT,LCD_E);
+	LCD_CTRL_DDR |= (1<<LCD_E)|(1<<LCD_RW)|(1<<LCD_RS);
+	cbi(LCD_CTRL_PORT,LCD_E);
 	lcdon=1;
 	DELAY(US_TO_TICKS(30000))
 //	delay_ms(30);
@@ -209,7 +223,11 @@ void lcd_put_line(const uint8_t lno,const uint8_t *buff) {
 	lcd_waitbusy();
 	i=40;
 	do {
-		lcd_write(*buff++,0);
+		if (*buff != 0) {
+		   lcd_write(*buff++,0);
+                } else {
+		   lcd_write(' ',0);
+                } 
 		lcd_waitbusy();
 		i--;
 	} while(i);

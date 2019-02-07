@@ -2,7 +2,7 @@
 VERSMAJOR=2
 VERSMINOR=5
 
-MCU = atmega32
+MCU = atmega328
 AVRDUDE = avrdude -B 0.1 -P usb -c usbasp -p $(MCU)
 
 AVRCC = avr-gcc
@@ -11,7 +11,10 @@ AVRCC = avr-gcc
 SHOWSIZE = avr-size
 OBJCOPY = avr-objcopy
 OBJDUMP = avr-objdump
-OBJS = conv.o fat.o interface.o keys.o lcd.o led.o main.o mmc.o setup.o sio.o
+OBJS = conv.o fat.o interface.o led.o main.o mmc.o setup.o sio.o
+ifndef NOLCD
+OBJS += lcd.o
+endif
 AVRCFLAGS = -g
 AVRCFLAGS += -mmcu=$(MCU)
 AVRCFLAGS += -W -Wall -Wshadow -Wstrict-prototypes
@@ -24,13 +27,26 @@ AVRCFLAGS += -ffunction-sections
 AVRCFLAGS += -DVERSMAJ=$(VERSMAJOR) -DVERSMIN=$(VERSMINOR)
 AVRCFLAGS += -DDYNAMIC_FATCACHE
 AVRCFLAGS += -DUSE_PAJERO_CFG_TOOL
+
+ifdef NOLCD
+AVRCFLAGS += -DNOLCD
+endif
+ifeq ($(MCU), atmega328)
+AVRCFLAGS += -DATMEGA328
+AVRCFLAGS += -DF_CPU=16000000ULL
+FUSE = fuse_mega328
+OBJS += keys328.o
+else
 AVRCFLAGS += -DF_CPU=14318180ULL
+FUSE = fuse_mega32
+OBJS += keys.o
+endif
 #AVRCFLAGS += -mint8
 #-------------------
 all: atari_conf_tool/sio2sd.xex sio2sd.hex sio2sd_all.bin sio2sd.bin sio2sd.dasm
 	$(SHOWSIZE) sio2sd.out
 #-------------------
-install: fuse_mega32 load
+install: $(FUSE) load
 #-------------------
 atari_conf_tool/sio2sd.xex.h atari_conf_tool/pajero_sio2sd.xex.h atari_conf_tool/sio2sd.xex: atari_conf_tool/sio2sd.asm tohex/tohex.c
 	$(MAKE) -C tohex
@@ -39,7 +55,7 @@ xex_loader/xex_loader.bin.h: xex_loader/xex_loader.asm tohex/tohex.c
 	$(MAKE) -C tohex
 	$(MAKE) -C xex_loader
 firmware_updater/sdfirmware.bin: firmware_updater/main.c lcd.c lcd.h mmc.c mmc.h delay.h cbisbi.h
-	$(MAKE) -C firmware_updater
+	$(MAKE) NOLCD=$(NOLCD) MCU=$(MCU) -C firmware_updater
 sio2sd.dasm : sio2sd.out
 	$(OBJDUMP) -D sio2sd.out > sio2sd.dasm
 sio2sd.hex : sio2sd.out 
@@ -51,14 +67,12 @@ sio2sd_all.bin : sio2sd.bin firmware_updater/sdfirmware.bin
 sio2sd.out : $(OBJS)
 	$(AVRCC) $(AVRCFLAGS) -o sio2sd.out -Wl,-Map,sio2sd.map -Wl,--gc-sections $(OBJS)
 #-------------------
-conv.o: conv.c
-	$(AVRCC) -c $(AVRCFLAGS) conv.c -o conv.o
+%.o: %.c %.h
+	$(AVRCC) -c $(AVRCFLAGS) -o $@ $<
 fat.o: fat.c interface.h sio.h mmc.h led.h lcd.h fat.h
 	$(AVRCC) -c $(AVRCFLAGS) fat.c -o fat.o
 interface.o: interface.c lcd.h keys.h conv.h fat.h setup.h
 	$(AVRCC) -c $(AVRCFLAGS) interface.c -o interface.o
-keys.o: keys.c
-	$(AVRCC) -c $(AVRCFLAGS) keys.c -o keys.o
 lcd.o: lcd.c delay.h cbisbi.h
 	$(AVRCC) -c $(AVRCFLAGS) lcd.c -o lcd.o
 led.o: led.c setup.h
@@ -92,6 +106,9 @@ fuse_mega32:
 #	$(AVRDUDE) -U hfuse:w:0xd1:m -U lfuse:w:0xff:m
 # for 14.31 MHz version
 	$(AVRDUDE) -U hfuse:w:0xc3:m -U lfuse:w:0x3f:m
+
+fuse_mega328:
+	$(AVRDUDE) -U hfuse:w:0xc3:m -U lfuse:w:0xff:m
 
 #-------------------
 clean:

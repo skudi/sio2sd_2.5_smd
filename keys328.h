@@ -18,44 +18,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _DELAY_H_
-#define _DELAY_H_
+#ifndef _KEYS_H_
+#define _KEYS_H_
 
-#include <avr/io.h>
+#include <inttypes.h>
 
-#define US_TO_TICKS(us) (((us)*F_CPU)/64000000)
-// TIMER1 MACROS for delay not less than us microseconds between DELAY_US_START and DELAY_US_END
-#ifdef ATMEGA328
-#define DELAY_START(cnt) { \
-	TCCR1B = 0;	\
-	TCCR1A = 0;	\
-	TCNT1 = 0; \
-	OCR1A = cnt; \
-	TIMSK1 = 0; \
-	TIFR2 &= 0xfc; \
-	TIFR1 |= 0x27; \
-	TIFR0 &= 0xfc; \
-	TCCR1B = 3;	\
-}
-#define DELAY_IN_PROGRESS bit_is_clear(TIFR1,OCF1A)
-#else
-#define DELAY_START(cnt) { \
-	TCCR1B = 0;	\
-	TCCR1A = 0;	\
-	TCNT1 = 0; \
-	OCR1A = cnt; \
-	TIMSK &= 0xC3; \
-	TIFR = 0x3C; \
-	TCCR1B = 3;	\
-}
-#define DELAY_IN_PROGRESS bit_is_clear(TIFR,OCF1A)
-#endif
-
-#define DELAY_REFRESH TCNT1=0;
-#define DELAY_END while(DELAY_IN_PROGRESS) {}
-#define DELAY(cnt) { \
-	DELAY_START(cnt) \
-	DELAY_END \
-}
+void keys_init(void);
+void keys_finish(void);
+uint8_t keys_shift(void);
+uint8_t keys_get(void);
 
 #endif

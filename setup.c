@@ -37,7 +37,7 @@
 static uint8_t option;
 static uint8_t value,maxvalue;
 static uint8_t maxval[OPTIONS]={17,4,2,3,2};
-static uint8_t defaultval[OPTIONS]={6,3,2,0,1};
+static uint8_t defaultval[OPTIONS]={6,1,2,0,1};
 static const char hsopt[] PROGMEM = "sio high speed:";
 static const char hsoff[] PROGMEM= "off";
 static const char ctopt[] PROGMEM= "cfg tool load:";

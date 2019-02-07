@@ -1,13 +1,21 @@
-MCU = atmega32
 #AVRDUDE = avrdude -P usb -c avrisp2 -p $(MCU)
 
 AVRCC = avr-gcc
 SHOWSIZE = avr-size
 OBJCOPY = avr-objcopy
 OBJDUMP = avr-objdump
-OBJS = lcd.o mmc.o main.o
+OBJS = mmc.o main.o
+ifndef NOLCD
+OBJS += lcd.o
+endif
 
 AVRCFLAGS=-g -mmcu=$(MCU) -W -Wall -Wshadow -Wstrict-prototypes -Os -mcall-prologues -mno-interrupts -DFIRMWARE -DF_CPU=14318180ULL
+ifeq ($(MCU), atmega328)
+AVRCFLAGS += -DATMEGA328
+endif
+ifdef NOLCD
+AVRCFLAGS += -DNOLCD
+endif
 
 #-------------------
 all: sdfirmware.hex sdfirmware.bin sdfirmware.dasm

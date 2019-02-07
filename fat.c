@@ -29,6 +29,7 @@
 #include "led.h"
 #include "lcd.h"
 #include "fat.h"
+#include <util/delay.h>
 
 //#define GET_SHORT(x) ((uint16_t)((x)[1])*256+(x)[0])
 //#define GET_LONG(x) ((((uint32_t)((x)[3])*256+(x)[2])*256+(x)[1])*256+(x)[0])

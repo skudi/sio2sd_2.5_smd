@@ -1,0 +1,136 @@
+#
+#
+# Patches for atmega328 form 
+# https://www.kernelcrash.com/blog/sio2sd-with-an-atmega328p/2016/10/16/
+#
+#
+
+Just some notes (by kernelcrash)
+
+- based on the https://sourceforge.net/projects/sio2sd/ sio2sd code, which is v2.5
+- Converted code so that it would compile on Atmega328p
+- Changed the wiring of the 5 keys since not really enough GPIO to wire it up on 328p
+- lots of mods to mmc.c so that I could use an SDHC card
+- Changed to use a 16MHz crystal.
+- Havent really tested it on anything but default '6' SIO speed
+- I generally compile like so
+
+rm *.o ; make sio2sd.hex
+
+- I tried to fix the warning 'warning: suggest parentheses around comparison in operand of '&'' , but then the entire mmc stuff breaks!
+ 
+
+SIO
+---
+              |\
+              |  \ |   
+DATAIN   -----|   >|------ PD1
+              |  / | 
+              |/
+
+GND      ----------------- GND
+
+
+DATAOUT  ----------------- PD0
+
+
+CMD      ----------------- PD2
+
+
+SDCARD (I used an arduino sd card adapter so that I did not need to convert 3.3 <> 5)
+-------------------------------------------------------------------------------------
+
+MISO  -------------------- PC3
+SCK   -------------------- PC2
+MOSI  -------------------- PC1
+CS    -------------------- PC0
+VSS   -------------------- GND
+
+
+LEDS
+----
+(probably use 270 ohm resistors)
+
+   ^  +5V
+   |      |\   |
+   |      |  \ |
+   +------|   >|----/\/\/\/--- PD6
+   |      |  / |
+   |      |/   |
+   |
+   |      |\   |
+   |      |  \ |
+   +------|   >|----/\/\/\/--- PD7
+   |      |  / |
+   |      |/   |
+   |
+   |      |\   |
+   |      |  \ |
+   +------|   >|----/\/\/\/--- PC5
+          |  / |
+          |/   |
+
+BUTTONS
+-------
+Can use 1N914 or 1N4148 diodes 
+
+                  |\   |
+     --------     |  \ |
+   +-o      o-----|   >|-------------- PB0
+   |              |  / |
+   |              |/   |
+   |
+   |              |\   |
+   | --------     |  \ |
+   +-o      o-----|   >|-------------- PB1
+   |              |  / |
+   |              |/   |
+   |
+   |              |\   |
+   | --------     |  \ |
+   +-o      o-----|   >|-------------- PB2
+   |              |  / |
+   |              |/   |
+   |
+   |              |\   |
+   | --------     |  \ |
+   +-o      o-----|   >|-------------- PB3
+   |              |  / |
+   |              |/   |
+   |
+   |              |\   |
+   | --------     |  \ |
+   +-o      o-----|   >|-------------- PB4
+   |              |  / |
+   |              |/   |
+   |
+   |        ^ +5V
+   |        |            15K
+   |        +-------/\/\/\/\/\-+
+   |                           | 
+   +---------------------------+----- PB5
+  
+
+LCD
+---
+
+  1. VSS  -------------------------- GND
+  2. VDD  -------------------------- +5V
+  3. VE   -------------------------- GND
+  4. RS   -------------------------- PD3
+  5. RW   -------------------------- PD4
+  6. E    -------------------------- PD5
+  7. D0
+  8. D1
+  9. D2
+ 10. D3
+ 11. D4   -------------------------- PB0
+ 12. D5   -------------------------- PB1
+ 13. D6   -------------------------- PB2
+ 14. D7   -------------------------- PB3
+ 15. BL anode  ---/\/\/\/\---------- +5V   (use 27 ohm resistor)
+ 16. BL cathode -------------------- GND
+
+
+
+

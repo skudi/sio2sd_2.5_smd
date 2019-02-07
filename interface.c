@@ -50,9 +50,13 @@ static uint16_t repcnt;
 static uint16_t actiondelay;
 
 #define SIO_DEBUG_DELAY 20000
+#ifdef ATMEGA328
+#define KEY_FIRST_REPEAT 700
+#define KEY_NEXT_REPEAT 300
+#else
 #define KEY_FIRST_REPEAT 46000
 #define KEY_NEXT_REPEAT 25000
-
+#endif
 //#define interface_clean_linebuff() memset(linebuff,32,40);
 /*
 void interface_clean_linebuff(void) {
