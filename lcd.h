@@ -24,20 +24,14 @@
 #include <inttypes.h>
 
 #ifdef NOLCD
-//#define lcd_init
-#define lcd_clear_line
-#define lcd_put_line
-#define lcd_put_line_p
 inline void lcd_send_err(void) {};
 inline void lcd_send_ok(void) {};
 inline void lcd_set_cursor(void) {};
 inline void lcd_next_hash(void) {};
 inline void lcd_init(void) {};
-//static __inline__ void lcd_clear_line(uint8_t lno) {};
-//inline void lcd_put_line(uint8_t lno,const uint8_t *buff) {};
-//inline void lcd_put_line_p(uint8_t lno,const uint8_t *buff) {};
-//inline void lcd_set_cursor(void) {};
-//inline void lcd_next_hash(void) {};
+inline void lcd_clear_line(uint8_t lno) {};
+inline void lcd_put_line(uint8_t lno,const uint8_t *buff) {};
+inline void lcd_put_line_p(uint8_t lno,const uint8_t *buff) {};
 #else /* LCD */
 
 #ifndef FIRMWARE
