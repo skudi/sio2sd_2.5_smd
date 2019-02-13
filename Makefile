@@ -2,8 +2,10 @@
 VERSMAJOR=2
 VERSMINOR=5
 
-MCU = atmega328
-AVRDUDE = avrdude -B 0.1 -P usb -c usbasp -p $(MCU)
+MCU = atmega328p
+#AVRDUDE = avrdude -B 0.1 -P usb -c usbasp -p $(MCU)
+AVRDUDE = avrdude -c usbasp -p $(MCU)
+#AVRDUDE = avrdude -p atmega328p -c arduino -P /dev/ttyUSB0 -b 57600
 
 AVRCC = avr-gcc
 #AVRCC = avr-gcc-4.1.2
@@ -31,15 +33,23 @@ AVRCFLAGS += -DUSE_PAJERO_CFG_TOOL
 ifdef NOLCD
 AVRCFLAGS += -DNOLCD
 endif
-ifeq ($(MCU), atmega328)
+ifeq ($(MCU), atmega328p)
 AVRCFLAGS += -DATMEGA328
 AVRCFLAGS += -DF_CPU=16000000ULL
 FUSE = fuse_mega328
+ifdef NOKEYS
+AVRCFLAGS += -DNOKEYS 
+else
 OBJS += keys328.o
+endif
 else
 AVRCFLAGS += -DF_CPU=14318180ULL
 FUSE = fuse_mega32
+ifdef NOKEYS
+AVRCFLAGS += -DNOKEYS 
+else
 OBJS += keys.o
+endif
 endif
 #AVRCFLAGS += -mint8
 #-------------------

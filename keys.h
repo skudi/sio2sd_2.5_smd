@@ -21,10 +21,18 @@
 #ifndef _KEYS_H_
 #define _KEYS_H_
 
-#include <inttypes.h>
+#ifdef NOKEYS
+
+inline void keys_init(void) {};
+inline uint8_t keys_shift(void) { return 0; };
+inline uint8_t keys_get(void) { return 0; };
+
+#else
 
 void keys_init(void);
 uint8_t keys_shift(void);
 uint8_t keys_get(void);
+
+#endif
 
 #endif
