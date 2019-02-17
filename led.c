@@ -22,7 +22,15 @@
 #include <inttypes.h>
 #include "setup.h"
 
-#ifdef ATMEGA328
+#ifdef BOARD_ARDNANO
+
+//only "L" led on arduino Nano Board
+#define LED_1_PORT PORTB
+#define LED_1_DDR DDRB
+#define LED_1_PIN PINB
+#define LED_1 5
+
+#elif defined BOARD_ATMEGA328
 
 #define LED_1_PORT PORTD
 #define LED_1_DDR DDRD
@@ -63,6 +71,7 @@
 //  0 - LED_2 = sd_read ; LED_3 = sd_write
 //  1 - LED_2 = sio_read ; LED_3 = sio_write
 //  2 - LED_2 = sd_op ; LED_3 = sio_op
+//  3 - LED_1 = ...
 
 static uint8_t mode;
 
@@ -71,11 +80,16 @@ void led_init(void) {
 	LED_1_PORT &= ~(1<<LED_1); // send LOW to light LED
 	LED_1_DDR |= (1<<LED_1);
 
+#ifdef BOARD_ARDNANO
+	//don't use 2 and 3
+#else
+
 	LED_2_PORT &= ~(1<<LED_2);
 	LED_2_DDR |= (1<<LED_2);
 
 	LED_3_PORT &= ~(1<<LED_3);
 	LED_3_DDR |= (1<<LED_3);
+#endif
 
 	mode = setup_get_led_mode();
 }
@@ -89,6 +103,7 @@ void led_error(uint8_t on) {
 }
 
 void led_sd_read(uint8_t on) {
+#ifdef LED_2
 	if (mode==0 || mode==2) {
 		if (on) {
 			LED_2_PORT &= ~(1<<LED_2);
@@ -96,9 +111,11 @@ void led_sd_read(uint8_t on) {
 			LED_2_PORT |= (1<<LED_2);
 		}
 	}
+#endif
 }
 
 void led_sd_write(uint8_t on) {
+#ifdef LED_2
 	if (mode==2) {
 		if (on) {
 			LED_2_PORT &= ~(1<<LED_2);
@@ -112,9 +129,11 @@ void led_sd_write(uint8_t on) {
 			LED_3_PORT |= (1<<LED_3);
 		}
 	}
+#endif
 }
 
 void led_sio_read(uint8_t on) {
+#ifdef LED_2
 	if (mode==1) {
 		if (on) {
 			LED_2_PORT &= ~(1<<LED_2);
@@ -128,9 +147,11 @@ void led_sio_read(uint8_t on) {
 			LED_3_PORT |= (1<<LED_3);
 		}
 	}
+#endif
 }
 
 void led_sio_write(uint8_t on) {
+#ifdef LED_2
 	if (mode==1 || mode==2) {
 		if (on) {
 			LED_3_PORT &= ~(1<<LED_3);
@@ -138,9 +159,11 @@ void led_sio_write(uint8_t on) {
 			LED_3_PORT |= (1<<LED_3);
 		}
 	}
+#endif
 }
 
 void led_sio_other(uint8_t on) {
+#ifdef LED_2
 	if (mode==2) {
 		if (on) {
 			LED_3_PORT &= ~(1<<LED_3);
@@ -148,10 +171,13 @@ void led_sio_other(uint8_t on) {
 			LED_3_PORT |= (1<<LED_3);
 		}
 	}
+#endif
 }
 
 void led_off(void) {
 	LED_1_PORT |= (1<<LED_1); // send HIGH to turn OFF
+#ifdef LED_2
 	LED_2_PORT |= (1<<LED_2); // send HIGH to turn OFF
 	LED_3_PORT |= (1<<LED_3); // send HIGH to turn OFF
+#endif
 }

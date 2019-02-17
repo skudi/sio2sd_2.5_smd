@@ -2,10 +2,15 @@
 VERSMAJOR=2
 VERSMINOR=5
 
+ifeq ($(BOARD), BOARD_ARDNANO)
+NOLCD = 1
+NOKEYS = 1
 MCU = atmega328p
-#AVRDUDE = avrdude -B 0.1 -P usb -c usbasp -p $(MCU)
+else
+MCU = atmega32
+endif
+
 AVRDUDE = avrdude -c usbasp -p $(MCU)
-#AVRDUDE = avrdude -p atmega328p -c arduino -P /dev/ttyUSB0 -b 57600
 
 AVRCC = avr-gcc
 #AVRCC = avr-gcc-4.1.2
