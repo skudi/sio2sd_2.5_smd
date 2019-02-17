@@ -628,7 +628,7 @@ uint8_t mmc_write_sector(uint32_t snum,uint8_t *buff) {
 	mmc_spi_flush();	// send 0xFF as CRC
 	mmc_spi_flush();	// send 0xFF as CRC
         // this line below generates a warning, but is OK
-	if (mmc_read_response()&0x1e !=4) {
+	if ((mmc_read_response()&0x1e) !=4) {
 		return 0;
 	}
 	while (mmc_spi_receive()==0) ;	//wait for busy
