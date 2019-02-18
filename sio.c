@@ -1124,11 +1124,7 @@ void sio_init(uint8_t shift) {
 }
 
 uint8_t sio_check_command(void) {
-	if (bit_is_clear(SIO_PIN,SIO_CMD)) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return bit_is_clear(SIO_PIN,SIO_CMD);
 }
 
 int16_t sio_next_command(uint8_t *buff) {
